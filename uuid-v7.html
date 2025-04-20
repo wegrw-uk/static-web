@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UUIDv7 Generator & Decoder</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1,
+      h2 {
+        color: #333;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+      }
+      button {
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 10px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .result,
+      .decode-result {
+        font-family: monospace;
+        font-size: 18px;
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        word-break: break-all;
+      }
+      .history {
+        margin-top: 20px;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+      }
+      .history-item {
+        font-family: monospace;
+        margin: 5px 0;
+        padding: 5px;
+        background-color: #f9f9f9;
+        border-radius: 2px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+      }
+      .history-item:hover {
+        background-color: #e9e9e9;
+      }
+      .copy-btn {
+        background-color: #2196f3;
+        margin-left: 10px;
+      }
+      .copy-btn:hover {
+        background-color: #0b7dda;
+      }
+      .info {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+        border-left: 4px solid #2196f3;
+      }
+      .tabs {
+        display: flex;
+        margin-bottom: 20px;
+      }
+      .tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        background-color: #f1f1f1;
+        border: 1px solid #ddd;
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+        margin-right: 5px;
+      }
+      .tab.active {
+        background-color: #fff;
+        border-bottom: 1px solid #fff;
+        margin-bottom: -1px;
+        font-weight: bold;
+      }
+      .tab-content {
+        display: none;
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 0 4px 4px 4px;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 16px;
+      }
+      .timestamp-details {
+        margin-top: 15px;
+        background-color: #e8f4fd;
+        padding: 15px;
+        border-radius: 4px;
+        border-left: 4px solid #2196f3;
+      }
+      .error {
+        color: #d32f2f;
+        background-color: #ffebee;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+        display: none;
+      }
+      .time-formats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .time-format {
+        background-color: #f9f9f9;
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #eee;
+      }
+      .time-format-label {
+        font-weight: bold;
+        color: #555;
+        margin-bottom: 5px;
+      }
+      .time-format-value {
+        font-family: monospace;
+      }
+      .components-info {
+        margin-top: 15px;
+        background-color: #f0f8ff;
+        padding: 15px;
+        border-radius: 4px;
+        border-left: 4px solid #4a6da7;
+        font-family: monospace;
+      }
+      .components-info p {
+        margin: 5px 0;
+      }
+      .tooltip-container {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+        border-bottom: 1px dotted #666;
+      }
+      .tooltip-text {
+        visibility: hidden;
+        width: 250px;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 8px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -125px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-weight: normal;
+        font-size: 14px;
+      }
+      .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+      }
+      .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #555 transparent transparent transparent;
+      }
+      </style>
+    </style>
+  </head>
+  <body>
+    <h1>UUIDv7 Generator & Decoder</h1>
+
+    <div class="info">
+      <p>
+        UUIDv7 is a time-ordered UUID format defined in RFC 9562. It combines a 48-bit timestamp with random data to create sortable, identifiers.
+      </p>
+      <p>This tool works completely offline and requires no dependencies.</p>
+      <p>Provides an RFC 9562 compliant implementation with monotonicity support as far as is possible within modern browsers.</p>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="generator">Generator</div>
+      <div class="tab" data-tab="decoder">Decoder</div>
+    </div>
+
+    <div id="generator" class="tab-content active">
+      <h2>Generate UUIDv7</h2>
+      <button id="generate">Generate UUIDv7</button>
+      <button id="copy" class="copy-btn">Copy to Clipboard</button>
+
+      <div class="result" id="result">Click "Generate UUIDv7" to create a UUID
+      </div>
+
+      <div class="timestamp-details" id="current-timestamp-details">
+        <div class="time-formats">
+          <div class="time-format">
+            <div class="time-format-label">Timestamp (ms):</div>
+            <div class="time-format-value" id="current-timestamp-ms"></div>
+          </div>
+          <div class="time-format">
+            <div class="time-format-label">Local Time:</div>
+            <div class="time-format-value" id="current-timestamp-local"></div>
+          </div>
+          <div class="time-format">
+            <div class="time-format-label">UTC Time:</div>
+            <div class="time-format-value" id="current-timestamp-utc"></div>
+          </div>
+          <div class="time-format">
+            <div class="time-format-label">ISO String:</div>
+            <div class="time-format-value" id="current-timestamp-iso"></div>
+          </div>
+        </div>
+      </div>
+
+      <h3>History</h3>
+      <div class="history" id="history"></div>
+    </div>
+
+    <div id="decoder" class="tab-content">
+      <h2>Decode UUIDv7</h2>
+      <p>Enter a UUIDv7 to extract its timestamp information:</p>
+
+      <input
+        type="text"
+        id="uuid-input"
+        placeholder="Enter UUIDv7 (e.g., 018e6f2d-3c3b-7871-9b62-1234567890ab)"
+      />
+      <button id="decode-btn">Decode</button>
+
+      <div class="error" id="decode-error"></div>
+
+      <div class="timestamp-details" id="decoded-timestamp-details" style="display: none">
+        <div class="time-formats">
+          <div class="time-format">
+            <div class="time-format-label">Timestamp (ms):</div>
+            <div class="time-format-value" id="decoded-timestamp-ms"></div>
+          </div>
+          <div class="time-format">
+            <div class="time-format-label">Local Time:</div>
+            <div class="time-format-value" id="decoded-timestamp-local"></div>
+          </div>
+          <div class="time-format">
+            <div class="time-format-label">UTC Time:</div>
+            <div class="time-format-value" id="decoded-timestamp-utc"></div>
+          </div>
+          <div class="time-format">
+            <div class="time-format-label">ISO String:</div>
+            <div class="time-format-value" id="decoded-timestamp-iso"></div>
+          </div>
+        </div>
+
+        <div class="components-info" id="decoded-components">
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /**
+       * UUIDv7 Implementation based on RFC 9562
+       * https://datatracker.ietf.org/doc/rfc9562/
+       *
+       * This implementation provides:
+       * - Time-ordered sortable UUIDs
+       * - Monotonicity guarantees (UUIDs are always increasing)
+       * - Clock drift handling
+       * - Cryptographically secure random generation (where available)
+       */
+
+      /**
+       * UUIDv7 Class for generating and decoding UUIDv7 identifiers.
+       * Based on RFC 9562: https://datatracker.ietf.org/doc/rfc9562/
+       *
+       * UUID Structure:
+       * - 48 bits: Unix timestamp (milliseconds since epoch)
+       * - 4 bits: Version (set to 7)
+       * - 12 bits: Random or counter data
+       * - 2 bits: Variant (set to 0b10 as per RFC 4122)
+       * - 62 bits: Random data
+       */
+      class UUIDv7Generator {
+        static VERSION = 7;
+        static VARIANT = 2; // RFC 4122 variant (10xx)
+        static VERSION_BITS = 0x7000; // Version 7 in the high 4 bits
+        static VARIANT_BITS = 0x8000; // Variant 10xx in the high 2 bits
+        static MAX_COUNTER = 0xfff; // 12 bits
+
+        constructor() {
+          this.lastTimestamp = 0;
+          this.counter = 0;
+        }
+
+        /**
+         * Generates a new UUIDv7 identifier.
+         *
+         * Features:
+         * - Guaranteed monotonicity (UUIDs are always increasing)
+         * - Embeds a counter in UUIDs generated in the same millisecond
+         * - Handles clock drift by resetting counter
+         * - Uses cryptographically secure random values when available
+         *
+         * @returns {{uuid: string, timestamp: number, counter: number, components: object}} The generated UUID and metadata
+         */
+        generate() {
+          // Get current timestamp in milliseconds since Unix epoch
+          let timestamp = Date.now();
+
+          // Clock handling with improved safety checks
+          if (timestamp < this.lastTimestamp) {
+            // Clock went backwards, reset counter
+            this.counter = 0;
+          } else if (timestamp === this.lastTimestamp) {
+            // Same millisecond, increment counter for monotonicity
+            this.counter++;
+            if (this.counter > UUIDv7Generator.MAX_COUNTER) {
+              // Counter overflow, wait for next millisecond
+              while (timestamp <= this.lastTimestamp) {
+                timestamp = Date.now();
+              }
+              this.counter = 0;
+            }
+          } else {
+            // New millisecond, reset counter
+            this.counter = 0;
+          }
+
+          this.lastTimestamp = timestamp;
+
+          // Convert timestamp to 48-bit big-endian value
+          const timestampHex = timestamp.toString(16).padStart(12, "0");
+
+          // Generate random values for remaining parts
+          const randomBytes = this.getRandomBytes(10);
+          let randomHex = this.bytesToHex(randomBytes);
+
+          // Construct the UUID by combining components
+          // First 48 bits: timestamp
+          let uuid = timestampHex;
+
+          // Next 4 bits: version (7)
+          // Next 12 bits: random or counter
+          const randOrCounter =
+            UUIDv7Generator.VERSION_BITS |
+            (this.counter > 0 ? this.counter : parseInt(randomHex.substr(0, 3), 16) & 0x0fff);
+
+          uuid += randOrCounter.toString(16).padStart(4, "0");
+
+          // Next 2 bits: variant (10xx) + 14 bits random
+          const nextRandom = parseInt(randomHex.substr(4, 4), 16);
+          const variantAndRandom = (UUIDv7Generator.VARIANT_BITS | (nextRandom & 0x3fff))
+            .toString(16)
+            .padStart(4, "0");
+
+          uuid += variantAndRandom;
+
+          // Remaining 48 bits: random
+          uuid += randomHex.substr(8, 12);
+
+          // Format with dashes
+          const formattedUuid = this.formatUUID(uuid);
+
+          return {
+            uuid: formattedUuid,
+            timestamp: timestamp,
+            counter: this.counter,
+            components: this.extractComponents(uuid),
+          };
+        }
+
+        /**
+         * Converts an array of bytes to a hexadecimal string.
+         * Each byte is represented as two hex digits.
+         *
+         * @param {Uint8Array} bytes - The array of bytes to convert
+         * @returns {string} The hexadecimal representation
+         */
+        bytesToHex(bytes) {
+          return Array.from(bytes)
+            .map((byte) => byte.toString(16).padStart(2, "0"))
+            .join("");
+        }
+
+        /**
+         * Generates an array of cryptographically secure random bytes
+         * when possible.
+         *
+         * Modern browsers support the Web Crypto API
+         * (window.crypto.getRandomValues), which provides cryptographically
+         * secure random values. For environments where this API isn't
+         * available, we fall back to Math.random(), which is NOT
+         * cryptographically secure and should be avoided in production systems
+         * with security requirements.
+         *
+         * @param {number} length - The number of random bytes to generate
+         * @returns {Uint8Array} The array of random bytes
+         */
+        getRandomBytes(length) {
+          const bytes = new Uint8Array(length);
+          if (window.crypto && window.crypto.getRandomValues) {
+            window.crypto.getRandomValues(bytes);
+          } else {
+            // Fallback to Math.random() (less secure)
+            // WARNING: Math.random() is NOT cryptographically secure.
+            // It is used here as a fallback for environments where
+            // window.crypto.getRandomValues is not available.
+            // For production environments where security is critical,
+            // a more robust PRNG (Pseudo-Random Number Generator)
+            // should be used.
+            for (let i = 0; i < bytes.length; i++) {
+              bytes[i] = Math.floor(Math.random() * 256);
+            }
+          }
+          return bytes;
+        }
+
+        /**
+         * Formats a raw UUID string by adding dashes in standard positions.
+         *
+         * Format: 8-4-4-4-12 hexadecimal characters
+         * Example: 018e6f2d-3c3b-7871-9b62-1234567890ab
+         *
+         * @param {string} uuid - The raw UUID string without dashes
+         * @returns {string} The formatted UUID with dashes
+         */
+        formatUUID(uuid) {
+          return (
+            uuid.substr(0, 8) +
+            "-" +
+            uuid.substr(8, 4) +
+            "-" +
+            uuid.substr(12, 4) +
+            "-" +
+            uuid.substr(16, 4) +
+            "-" +
+            uuid.substr(20, 12)
+          );
+        }
+
+        /**
+         * Extracts and identifies the individual components of a UUIDv7.
+         *
+         * Components include:
+         * - time: The 48-bit timestamp (in hex)
+         * - version: The 4-bit version field (should be 7)
+         * - rand1/counter: The 12 random bits (may contain counter value)
+         * - variant: The variant bits (should be 8, 9, a, or b for RFC 4122)
+         * - rand2: The remaining random data
+         * - counter: Extracted counter value (may be 0 if not in use)
+         *
+         * @param {string} uuid - The UUID string without dashes
+         * @returns {object} Object containing the extracted components
+         */
+        extractComponents(uuid) {
+          return {
+            time: uuid.substr(0, 12),
+            version: uuid.substr(12, 1),
+            rand1: uuid.substr(13, 3),
+            variant: uuid.substr(16, 1),
+            rand2: uuid.substr(17),
+            counter: parseInt(uuid.substr(13, 3), 16) & UUIDv7Generator.MAX_COUNTER,
+          };
+        }
+
+        /**
+         * Decodes a UUIDv7 string to extract its timestamp and component parts.
+         *
+         * This static method can be called directly on the class:
+         * UUIDv7Generator.decode(uuid)
+         *
+         * @param {string} uuidString - The UUID string to decode (with dashes)
+         * @returns {{timestamp: number, components: object}} The decoded
+         * timestamp and component parts
+         * @throws {Error} If the UUID format is invalid or it's not a
+         * version 7 UUID
+         */
+        static decode(uuidString) {
+          // Validate UUID format
+          const uuidRegex =
+            /^([0-9a-f]{8})-([0-9a-f]{4})-([7])([0-9a-f]{3})-([89ab])([0-9a-f]{3})-([0-9a-f]{12})$/i;
+          const match = uuidString.match(uuidRegex);
+
+          if (!match) {
+            throw new Error("Invalid UUID format or not a version 7 UUID");
+          }
+
+          // Extract the timestamp portion (first 48 bits)
+          const timestampHex = match[1] + match[2];
+
+          // Convert hex to decimal (milliseconds since Unix epoch)
+          const timestamp = parseInt(timestampHex, 16);
+
+          // Build the UUID without dashes for component extraction
+          const uuid = match[1] + match[2] + match[3] + match[4] + match[5] + match[6] + match[7];
+
+          // Create an instance just for component extraction
+          const extractor = new UUIDv7Generator();
+
+          return {
+            timestamp: timestamp,
+            components: extractor.extractComponents(uuid),
+          };
+        }
+      }
+
+      /**
+       * Formats a Unix timestamp (milliseconds) into various
+       * human-readable formats.
+       *
+       * @param {number} timestamp - The Unix timestamp in milliseconds
+       * @returns {{ms: number, local: string, utc: string, iso: string}}
+       * Various formatted timestamps
+       */
+      function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+
+        return {
+          ms: timestamp,
+          local: date.toLocaleString(),
+          utc: date.toUTCString(),
+          iso: date.toISOString(),
+        };
+      }
+
+      // Create a single instance of the generator
+      const uuidGenerator = new UUIDv7Generator();
+
+      // DOM elements
+      const generateBtn = document.getElementById("generate");
+      const copyBtn = document.getElementById("copy");
+      const resultDiv = document.getElementById("result");
+      const historyDiv = document.getElementById("history");
+      const tabs = document.querySelectorAll(".tab");
+      const tabContents = document.querySelectorAll(".tab-content");
+      const uuidInput = document.getElementById("uuid-input");
+      const decodeBtn = document.getElementById("decode-btn");
+      const decodeError = document.getElementById("decode-error");
+      const decodedTimestampDetails = document.getElementById("decoded-timestamp-details");
+
+      // Current timestamp elements
+      const currentTimestampMs = document.getElementById("current-timestamp-ms");
+      const currentTimestampLocal = document.getElementById("current-timestamp-local");
+      const currentTimestampUtc = document.getElementById("current-timestamp-utc");
+      const currentTimestampIso = document.getElementById("current-timestamp-iso");
+
+      // Decoded timestamp elements
+      const decodedTimestampMs = document.getElementById("decoded-timestamp-ms");
+      const decodedTimestampLocal = document.getElementById("decoded-timestamp-local");
+      const decodedTimestampUtc = document.getElementById("decoded-timestamp-utc");
+      const decodedTimestampIso = document.getElementById("decoded-timestamp-iso");
+
+      // Tab switching
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          // Remove active class from all tabs and contents
+          tabs.forEach((t) => t.classList.remove("active"));
+          tabContents.forEach((c) => c.classList.remove("active"));
+
+          // Add active class to clicked tab and corresponding content
+          tab.classList.add("active");
+          document.getElementById(tab.dataset.tab).classList.add("active");
+        });
+      });
+
+      // Generate UUID when button is clicked
+      generateBtn.addEventListener("click", function () {
+        const result = uuidGenerator.generate();
+        const uuid = result.uuid;
+        const timestamp = result.timestamp;
+
+        resultDiv.textContent = uuid;
+
+        // Update timestamp details
+        const formattedTime = formatTimestamp(timestamp);
+        currentTimestampMs.textContent = formattedTime.ms;
+        currentTimestampLocal.textContent = formattedTime.local;
+        currentTimestampUtc.textContent = formattedTime.utc;
+        currentTimestampIso.textContent = formattedTime.iso;
+
+        // Add to history
+        const historyItem = document.createElement("div");
+        historyItem.className = "history-item";
+
+        const uuidSpan = document.createElement("span");
+        uuidSpan.textContent = uuid;
+        uuidSpan.className = "uuid-text";
+        historyItem.appendChild(uuidSpan);
+
+        const timeSpan = document.createElement("span");
+        timeSpan.textContent = new Date(timestamp).toLocaleTimeString();
+        timeSpan.className = "time-text";
+        historyItem.appendChild(timeSpan);
+
+        historyItem.addEventListener("click", function () {
+          resultDiv.textContent = uuid;
+
+          // Update timestamp details
+          const formattedTime = formatTimestamp(timestamp);
+          currentTimestampMs.textContent = formattedTime.ms;
+          currentTimestampLocal.textContent = formattedTime.local;
+          currentTimestampUtc.textContent = formattedTime.utc;
+          currentTimestampIso.textContent = formattedTime.iso;
+        });
+
+        historyDiv.prepend(historyItem);
+
+        // Limit history to 20 items
+        if (historyDiv.children.length > 20) {
+          historyDiv.removeChild(historyDiv.lastChild);
+        }
+      });
+
+      // Copy UUID to clipboard
+      copyBtn.addEventListener("click", function () {
+        const uuid = resultDiv.textContent;
+        if (uuid && uuid !== 'Click "Generate UUIDv7" to create a new UUID') {
+          navigator.clipboard
+            .writeText(uuid)
+            .then(() => {
+              const originalText = copyBtn.textContent;
+              copyBtn.textContent = "Copied!";
+              setTimeout(() => {
+                copyBtn.textContent = originalText;
+              }, 2000);
+            })
+            .catch((err) => {
+              console.error("Failed to copy: ", err);
+              alert("Failed to copy to clipboard. Please copy manually.");
+            });
+        }
+      });
+
+      // Decode UUID when button is clicked
+      decodeBtn.addEventListener("click", function () {
+        const uuidToDecodeValue = uuidInput.value.trim();
+
+        try {
+          const decodedData = UUIDv7Generator.decode(uuidToDecodeValue);
+          const timestamp = decodedData.timestamp;
+
+          // Hide error message if it was shown
+          decodeError.style.display = "none";
+
+          // Show timestamp details
+          decodedTimestampDetails.style.display = "block";
+
+          // Update timestamp details
+          const formattedTime = formatTimestamp(timestamp);
+          decodedTimestampMs.textContent = formattedTime.ms;
+          decodedTimestampLocal.textContent = formattedTime.local;
+          decodedTimestampUtc.textContent = formattedTime.utc;
+          decodedTimestampIso.textContent = formattedTime.iso;
+
+          // Display components information
+          const componentsInfo = document.getElementById("decoded-components");
+          if (componentsInfo) {
+                componentsInfo.innerHTML = `
+                            <div class="components-info">
+                                <p><strong>Time component:</strong> <span class="tooltip-container">${decodedData.components.time}<span class="tooltip-text">The 48-bit Unix timestamp (milliseconds since epoch) that forms the first part of the UUID</span></span></p>
+                                <p><strong>Version:</strong> <span class="tooltip-container">${decodedData.components.version}<span class="tooltip-text">The 4-bit version field, always set to 7 for UUIDv7</span></span></p>
+                                <p><strong>Random/Counter (1):</strong> <span class="tooltip-container">${decodedData.components.rand1}<span class="tooltip-text">12 bits that can contain a counter or random data to ensure monotonicity</span></span></p>
+                                <p><strong>Variant:</strong> <span class="tooltip-container">${decodedData.components.variant}<span class="tooltip-text">The 2-bit variant field (8, 9, A, or B) specifying RFC 4122 variant</span></span></p>
+                                <p><strong>Random (2):</strong> <span class="tooltip-container">${decodedData.components.rand2}<span class="tooltip-text">The remaining random bits that ensure uniqueness</span></span></p>
+                                <p><strong>Counter:</strong> <span class="tooltip-container">${decodedData.components.counter}<span class="tooltip-text">The extracted counter value (if one was used during generation)</span></span></p>
+                            </div>
+                        `;
+          }
+        } catch (error) {
+          // Show error message
+          decodeError.textContent = error.message;
+          decodeError.style.display = "block";
+
+          // Hide timestamp details
+          decodedTimestampDetails.style.display = "none";
+        }
+      });
+
+      /**
+       * Generate initial UUID when page loads.
+       * This approach directly generates and displays the UUID
+       * without simulating a button click event.
+       */
+      window.addEventListener("load", function () {
+        const result = uuidGenerator.generate();
+        const uuid = result.uuid;
+        const timestamp = result.timestamp;
+
+        resultDiv.textContent = uuid;
+
+        // Update timestamp details
+        const formattedTime = formatTimestamp(timestamp);
+        currentTimestampMs.textContent = formattedTime.ms;
+        currentTimestampLocal.textContent = formattedTime.local;
+        currentTimestampUtc.textContent = formattedTime.utc;
+        currentTimestampIso.textContent = formattedTime.iso;
+      });
+    </script>
+  </body>
+</html>
